@@ -1,11 +1,12 @@
 import numpy as np
-from sklearn.gaussian_process.kernels import Kernel
+from collections import OrderedDict
+from sklearn.gaussian_process.kernels import Kernel, Hyperparameter
 
 class VariadicKernelOperator(Kernel):
 	"""Alternative to sklearn.gaussian_process.kernels.KernelOperator with variadic number nested kernel"""
 
 	def __init__(self, **kernels):
-		self.kernels = kernels
+		self.kernels = OrderedDict(kernels)
 
 	def get_params(self, deep=True):
 		"""Get parameters of this kernel.
@@ -20,7 +21,7 @@ class VariadicKernelOperator(Kernel):
 				Parameter names mapped to their values.
 		"""
 
-		params = self.kernels.copy()
+		params = dict(self.kernels)
 		if deep:
 			for name, kernel in self.kernels.items():
 				deep_items = kernel.get_params().items()
