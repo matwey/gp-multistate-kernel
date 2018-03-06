@@ -8,5 +8,6 @@ setup(
     license='',
     author='Matwey Kornilov',
     author_email='',
-    description=''
+    description='',
+    test_suite='test.kernel',
 )
