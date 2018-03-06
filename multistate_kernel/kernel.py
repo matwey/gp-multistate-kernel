@@ -81,7 +81,7 @@ class MultiStateKernel(VariadicKernelOperator):
 		super(MultiStateKernel, self).__init__(**kwargs)
 
 	def get_params(self, deep=True):
-		params = super(MultiStateKernel, self).get_params(self, deep)
+		params = super(MultiStateKernel, self).get_params(deep)
 		for name, kernel in self._get_kernel_dict().items():
 			del params[name]
 		params['kernels'] = self.state_kernels
