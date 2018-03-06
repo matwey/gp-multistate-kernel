@@ -6,7 +6,7 @@ class VariadicKernelOperator(Kernel):
 	"""Alternative to sklearn.gaussian_process.kernels.KernelOperator with variadic number nested kernel"""
 
 	def __init__(self, **kernels):
-		self.kernels = OrderedDict(kernels)
+		self.kernels = OrderedDict(sorted(kernels.items(), key=lambda t: t[0]))
 
 	def get_params(self, deep=True):
 		"""Get parameters of this kernel.
@@ -72,10 +72,20 @@ class VariadicKernelOperator(Kernel):
 		return all([kernel.is_stationary() for kernel in self.kernels.values()])
 
 class MultiStateKernel(VariadicKernelOperator):
-	def __init__(self, *kernels):
+	def _get_kernel_dict(self):
+		return dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
+
+	def __init__(self, kernels):
 		self.state_kernels = kernels
-		kwargs = dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
+		kwargs = self._get_kernel_dict()
 		super(MultiStateKernel, self).__init__(**kwargs)
+
+	def get_params(self, deep=True):
+		params = super(MultiStateKernel, self).get_params(self, deep)
+		for name, kernel in self._get_kernel_dict().items():
+			del params[name]
+		params['kernels'] = self.state_kernels
+		return params
 
 	def __call__(self, X, Y=None, eval_gradient=False):
 		"""Return the kernel k(X, Y) and optionally its gradient.
