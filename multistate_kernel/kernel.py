@@ -73,11 +73,96 @@ class VariadicKernelOperator(Kernel):
 
 class MultiStateKernel(VariadicKernelOperator):
 	def __init__(self, *kernels):
-		kwargs = dict([("s" + str(n), kernel) for n, kernel in enumerate(kernels)])
+		self.state_kernels = kernels
+		kwargs = dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
 		super(MultiStateKernel, self).__init__(**kwargs)
 
 	def __call__(self, X, Y=None, eval_gradient=False):
-		super(MultiStateKernel, self).__call__(X,Y,eval_gradient)
+		"""Return the kernel k(X, Y) and optionally its gradient.
+
+		Parameters
+		----------
+		X : array, shape (n_samples_X, n_features)
+			Left argument of the returned kernel k(X, Y)
+		Y : array, shape (n_samples_Y, n_features), (optional, default=None)
+			Right argument of the returned kernel k(X, Y). If None, k(X, X)
+			if evaluated instead.
+		eval_gradient : bool (optional, default=False)
+			Determines whether the gradient with respect to the kernel
+			hyperparameter is determined. Only supported when Y is None.
+
+		Returns
+		-------
+		K : array, shape (n_samples_X, n_samples_Y)
+			Kernel k(X, Y)
+		K_gradient : array (opt.), shape (n_samples_X, n_samples_Y, n_dims)
+			The gradient of the kernel k(X, X) with respect to the
+			hyperparameter of the kernel. Only returned when eval_gradient
+			is True.
+		"""
+
+		if Y is None:
+			Y = X
+		else:
+			if eval_gradient:
+				raise ValueError("Gradient can only be evaluated when Y is None.")
+
+		n_samples_X, n_featuresX = X.shape
+		n_samples_Y, n_featuresY = Y.shape
+
+		assert n_featuresX == n_featuresY
+
+		n_features = n_featuresX
+
+		K = np.zeros(shape=(n_samples_X, n_samples_Y))
+		if eval_gradient:
+			K_gradient = np.zeros(shape=(n_samples_X, n_samples_Y, self.n_dims))
+
+		states_X = X[:,0].astype(int)
+		states_Y = Y[:,0].astype(int)
+
+		pos = 0
+		for n, kernel in enumerate(self.state_kernels):
+			related_X = (states_X == n)
+			related_Y = (states_Y == n)
+
+			if eval_gradient:
+				n = pos + kernel.n_dims
+				K[np.ix_(related_X,related_Y)], K_gradient[np.ix_(related_X,related_Y,range(pos,n))] = kernel(X[related_X,1:], None, True)
+				pos = n
+			else:
+				K[np.ix_(related_X,related_Y)] = kernel(X[related_X,1:], Y[related_Y,1:], False)
+
+		if eval_gradient:
+			return K, K_gradient
+		return K
 
 	def diag(self, X):
-		super(MultiStateKernel, self).diag(X)
+		"""Returns the diagonal of the kernel k(X, X).
+		The result of this method is identical to np.diag(self(X)); however,
+		it can be evaluated more efficiently since only the diagonal is
+		evaluated.
+
+		Parameters
+		----------
+			X : array, shape (n_samples_X, n_features)
+				Left argument of the returned kernel k(X, Y)
+
+		Returns
+		-------
+		K_diag : array, shape (n_samples_X,)
+			Diagonal of kernel k(X, X)
+		"""
+
+		n_samples_X, n_features = X.shape
+
+		K_diag = np.zeros(shape=(n_samples_X,))
+
+		states_X = X[:,0].astype(int)
+
+		for n, kernel in enumerate(self.state_kernels):
+			related_X = (states_X == n)
+
+			K_diag[related_X] = kernel.diag(X[related_X,1:])
+
+		return K_diag
