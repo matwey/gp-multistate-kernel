@@ -73,10 +73,12 @@ class VariadicKernelOperator(Kernel):
 		return all([kernel.is_stationary() for kernel in self.kernels.values()])
 
 class ConstantMatrix(Kernel):
-	def _matrix2flat(self, matrix):
+	@staticmethod
+	def _matrix2flat(matrix):
 		return matrix[np.tril_indices_from(matrix)]
 
-	def _flat2matrix(self, flat):
+	@staticmethod
+	def _flat2matrix(flat):
 		dimK = flat.shape[0]
 		dimX = int(math.floor(math.sqrt(2*dimK)))
 
