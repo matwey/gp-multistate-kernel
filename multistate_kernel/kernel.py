@@ -107,13 +107,17 @@ class MultiStateKernel(VariadicKernelOperator):
 				self.coeffs_bounds = np.stack((self._matrix2flat(lower), self._matrix2flat(upper)), 1)
 
 			@property
+			def tril(self):
+				return self._flat2matrix(self.coeffs)
+
+			@property
 			def hyperparameter_coeffs(self):
 				return Hyperparameter(
 					"coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
 
 			def get_params(self, deep = True):
 				params = {}
-				params["coeffs"] = self._flat2matrix(self.coeffs)
+				params["coeffs"] = self.tril
 				params["coeffs_bounds"] = tuple(map(lambda x: self._flat2matrix(self.coeffs_bounds[:,x]), [0,1]))
 				return params
 
@@ -235,14 +239,18 @@ class MultiStateKernel(VariadicKernelOperator):
 		"""
 
 		n_samples_X, n_features = X.shape
+		scale = self.scale_kernel.tril
 
 		K_diag = np.zeros(shape=(n_samples_X,))
 
 		states_X = X[:,0].astype(int)
 
-		for n, kernel in enumerate(self.state_kernels):
+		for n in range(0, len(self.state_kernels)):
+			""" Diag = Sum_{k=0..n} scale_{n, k}^2 kernel_{k} (X_n, X_n) """
 			related_X = (states_X == n)
 
-			K_diag[related_X] = kernel.diag(X[related_X,1:])
+			for k in range(0, n + 1):
+				kernel = self.state_kernels[k]
+				K_diag[related_X] += scale[n,k]**2 * kernel.diag(X[related_X,1:])
 
 		return K_diag
