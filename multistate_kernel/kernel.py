@@ -72,85 +72,89 @@ class VariadicKernelOperator(Kernel):
 	def is_stationary(self):
 		return all([kernel.is_stationary() for kernel in self.kernels.values()])
 
-class ConstantMatrix(Kernel):
-	@staticmethod
-	def _matrix2flat(matrix):
-		return matrix[np.tril_indices_from(matrix)]
-
-	@staticmethod
-	def _flat2matrix(flat):
-		dimK = flat.shape[0]
-		dimX = int(math.floor(math.sqrt(2*dimK)))
-
-		matrix = np.zeros((dimX, dimX))
-		matrix[np.tril_indices_from(matrix)] = flat
-
-		return matrix
-
-	def __init__(self, coeffs, coeffs_bounds):
-		if coeffs.ndim == 1:
-			matrix = np.diag(coeffs)
-			lower, upper = np.diag(coeffs_bounds[0]), np.diag(coeffs_bounds[1])
-		elif coeffs.ndim == 2:
-			matrix = np.tril(coeffs)
-			lower, upper = np.tril(coeffs_bounds[0]), np.tril(coeffs_bounds[1])
-		else:
-			raise ValueError("coeffs has wrong or unsupported dimension")
-
-		self.coeffs = self._matrix2flat(matrix)
-		self.coeffs_bounds = np.stack((self._matrix2flat(lower), self._matrix2flat(upper)), 1)
-
-	@property
-	def hyperparameter_coeffs(self):
-		return Hyperparameter(
-			"coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
-
-	def get_params(self, deep = True):
-		params = {}
-		params["coeffs"] = self._flat2matrix(self.coeffs)
-		params["coeffs_bounds"] = tuple(map(lambda x: self._flat2matrix(self.coeffs_bounds[:,x]), [0,1]))
-		return params
-
-	@property
-	def theta(self):
-		return self.coeffs
-
-	@theta.setter
-	def theta(self, theta):
-		self.coeffs = theta
-
-	def __call__(self, X, Y=None, eval_gradient=False):
-		X = np.atleast_2d(X)
-		K = self._flat2matrix(self.coeffs)
-
-		if eval_gradient:
-			dimK = self.coeffs.shape[0]
-			gradient = np.zeros(K.shape + (dimK,))
-			gradient[np.tril_indices_from(K) + (np.arange(dimK),)] = np.ones(dimK)
-			return K, gradient
-		else:
-			return K
-
-	def diag(self, X):
-		return np.diag(self._flat2matrix(self.coeffs))
-
-	def is_stationary(self):
-		return True
 
 class MultiStateKernel(VariadicKernelOperator):
 	def _get_kernel_dict(self):
 		return dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
 
-	def __init__(self, kernels):
+	def __init__(self, kernels, scale, scale_bounds):
+		class ConstantMatrix(Kernel):
+			@staticmethod
+			def _matrix2flat(matrix):
+				return matrix[np.tril_indices_from(matrix)]
+
+			@staticmethod
+			def _flat2matrix(flat):
+				dimK = flat.shape[0]
+				dimX = int(math.floor(math.sqrt(2*dimK)))
+
+				matrix = np.zeros((dimX, dimX))
+				matrix[np.tril_indices_from(matrix)] = flat
+
+				return matrix
+
+			def __init__(self, coeffs, coeffs_bounds):
+				if coeffs.ndim == 1:
+					matrix = np.diag(coeffs)
+					lower, upper = np.diag(coeffs_bounds[0]), np.diag(coeffs_bounds[1])
+				elif coeffs.ndim == 2:
+					matrix = np.tril(coeffs)
+					lower, upper = np.tril(coeffs_bounds[0]), np.tril(coeffs_bounds[1])
+				else:
+					raise ValueError("coeffs has wrong or unsupported dimension")
+
+				self.coeffs = self._matrix2flat(matrix)
+				self.coeffs_bounds = np.stack((self._matrix2flat(lower), self._matrix2flat(upper)), 1)
+
+			@property
+			def hyperparameter_coeffs(self):
+				return Hyperparameter(
+					"coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
+
+			def get_params(self, deep = True):
+				params = {}
+				params["coeffs"] = self._flat2matrix(self.coeffs)
+				params["coeffs_bounds"] = tuple(map(lambda x: self._flat2matrix(self.coeffs_bounds[:,x]), [0,1]))
+				return params
+
+			@property
+			def theta(self):
+				return self.coeffs
+
+			@theta.setter
+			def theta(self, theta):
+				self.coeffs = theta
+
+			def __call__(self, X, Y=None, eval_gradient=False):
+				raise NotImplementedError()
+			def diag(self, X):
+				raise NotImplementedError()
+			def is_stationary(self):
+				raise NotImplementedError()
+
 		self.state_kernels = kernels
+		self.scale_kernel = ConstantMatrix(scale, scale_bounds)
+
 		kwargs = self._get_kernel_dict()
+		kwargs['scale'] = self.scale_kernel
+
 		super(MultiStateKernel, self).__init__(**kwargs)
 
 	def get_params(self, deep=True):
 		params = super(MultiStateKernel, self).get_params(deep)
 		for name, kernel in self._get_kernel_dict().items():
 			del params[name]
+		del params['scale']
+		if deep:
+			del params['scale__coeffs']
+			del params['scale__coeffs_bounds']
+
 		params['kernels'] = self.state_kernels
+
+		scale_params = self.scale_kernel.get_params(False)
+		params['scale'] = scale_params['coeffs']
+		params['scale_bounds'] = scale_params['coeffs_bounds']
+
 		return params
 
 	def __call__(self, X, Y=None, eval_gradient=False):
