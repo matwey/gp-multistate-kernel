@@ -94,6 +94,8 @@ class MultiStateKernel(VariadicKernelOperator):
 				return matrix
 
 			def __init__(self, coeffs, coeffs_bounds):
+				self.params = {'coeffs': coeffs, 'coeffs_bounds': coeffs_bounds}
+
 				if coeffs.ndim == 1:
 					matrix = np.diag(coeffs)
 					lower, upper = np.diag(coeffs_bounds[0]), np.diag(coeffs_bounds[1])
@@ -115,10 +117,7 @@ class MultiStateKernel(VariadicKernelOperator):
 				return Hyperparameter("coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
 
 			def get_params(self, deep = True):
-				params = {}
-				params["coeffs"] = self.tril
-				params["coeffs_bounds"] = tuple(map(lambda x: self._flat2matrix(self.coeffs_bounds[:,x]), [0,1]))
-				return params
+				return self.params
 
 			@property
 			def theta(self):
