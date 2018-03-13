@@ -124,6 +124,10 @@ class MultiStateKernel(VariadicKernelOperator):
 			def theta(self):
 				return self.coeffs
 
+			@property
+			def bounds(self):
+				return self.coeffs_bounds
+
 			@theta.setter
 			def theta(self, theta):
 				self.coeffs = theta
