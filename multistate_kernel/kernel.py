@@ -226,6 +226,9 @@ class MultiStateKernel(VariadicKernelOperator):
 				npos = pos + kernel.n_dims
 				kernel_value[...,k], kernel_gradient[...,range(pos,npos)] = kernel(X[:,1:], None, True)
 				pos = npos
+			elif X is Y:
+				# See WhiteKernel implementation details
+				kernel_value[...,k] = kernel(X[:,1:], None, False)
 			else:
 				kernel_value[...,k] = kernel(X[:,1:], Y[:,1:], False)
 
