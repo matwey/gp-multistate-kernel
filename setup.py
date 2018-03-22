@@ -9,5 +9,6 @@ setup(
     author='Matwey Kornilov',
     author_email='',
     description='',
+    install_requires=['numpy', 'scikit-learn'],
     test_suite='test.kernel',
 )
