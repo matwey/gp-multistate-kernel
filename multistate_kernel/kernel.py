@@ -202,15 +202,28 @@ class MultiStateKernel(VariadicKernelOperator):
 
 		n_features = n_featuresX
 
+		X_reduced, X_reduced_index = np.unique(X[:,1:], return_inverse=True, axis=0)
+		if X is Y:
+			Y_reduced, Y_reduced_index = X_reduced, X_reduced_index
+		else:
+			Y_reduced, Y_reduced_index = np.unique(Y[:,1:], return_inverse=True, axis=0)
+
+		n_samples_X_reduced, n_featuresX_reduced = X_reduced.shape
+		n_samples_Y_reduced, n_featuresY_reduced = Y_reduced.shape
+
 		states_X = X[:,0].astype(int)
 		states_Y = Y[:,0].astype(int)
 
 		related_X = [[]]*n_states
 		related_Y = [[]]*n_states
+		related_X_reduced = [[]]*n_states
+		related_Y_reduced = [[]]*n_states
 
 		for n in range(n_states):
 			related_X[n] = (states_X == n)
 			related_Y[n] = (states_Y == n)
+			related_X_reduced[n] = X_reduced_index[related_X[n]]
+			related_Y_reduced[n] = Y_reduced_index[related_Y[n]]
 
 		scale_index = np.zeros(shape=scale.shape, dtype=int)
 		scale_index[np.tril_indices_from(scale_index)] = np.arange(len(np.tril_indices_from(scale_index)[0]))
@@ -218,22 +231,22 @@ class MultiStateKernel(VariadicKernelOperator):
 		for kernel in self.state_kernels:
 			scale_pos += kernel.n_dims
 
-		kernel_value = np.zeros(shape=(n_samples_X, n_samples_Y, n_states))
+		kernel_value = np.zeros(shape=(n_samples_X_reduced, n_samples_Y_reduced, n_states))
 		if eval_gradient:
-			kernel_gradient = np.zeros(shape=(n_samples_X, n_samples_Y, scale_pos))
+			kernel_gradient = np.zeros(shape=(n_samples_X_reduced, n_samples_Y_reduced, scale_pos))
 
 		pos = 0
 		for k in range(n_states):
 			kernel = self.state_kernels[k]
 			if eval_gradient:
 				npos = pos + kernel.n_dims
-				kernel_value[...,k], kernel_gradient[...,range(pos,npos)] = kernel(X[:,1:], None, True)
+				kernel_value[...,k], kernel_gradient[...,range(pos,npos)] = kernel(X_reduced, None, True)
 				pos = npos
 			elif X is Y:
 				# See WhiteKernel implementation details
-				kernel_value[...,k] = kernel(X[:,1:], None, False)
+				kernel_value[...,k] = kernel(X_reduced, None, False)
 			else:
-				kernel_value[...,k] = kernel(X[:,1:], Y[:,1:], False)
+				kernel_value[...,k] = kernel(X_reduced, Y_reduced, False)
 
 		K = np.zeros(shape=(n_samples_X, n_samples_Y))
 		if eval_gradient:
@@ -248,13 +261,13 @@ class MultiStateKernel(VariadicKernelOperator):
 			for m in range(n_states):
 				pos = 0
 				for k in range(min(n,m) + 1):
-					sub_kernel_value = kernel_value[np.ix_(related_X[n],related_Y[m])][...,k]
+					sub_kernel_value = kernel_value[np.ix_(related_X_reduced[n],related_Y_reduced[m])][...,k]
 					K[np.ix_(related_X[n],related_Y[m])] += scale[n,k] * scale[m,k] * sub_kernel_value
 
 					if eval_gradient:
 						# Fill in gradient with respect to kernel_{k} params
 						npos = pos + kernel.n_dims
-						sub_kernel_gradient = kernel_gradient[np.ix_(related_X[n], related_Y[m], range(pos, npos))]
+						sub_kernel_gradient = kernel_gradient[np.ix_(related_X_reduced[n], related_Y_reduced[m], range(pos, npos))]
 						K_gradient[np.ix_(related_X[n],related_Y[m],range(pos,npos))] += scale[n,k] * scale[m,k] * sub_kernel_gradient
 						pos = npos
 
