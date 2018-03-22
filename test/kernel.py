@@ -29,7 +29,25 @@ class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
         call_result = msk(X)
         expected_result = np.diag(np.r_[np.full(n1, level1), np.full(n2, level2)])
         self.assertAllClose(call_result, expected_result)
+    def test_two_white_noises_unity_matrix_correlated(self):
+        level1 = 1
+        level2 = 2
+        inter = 0.5
+        matrix = np.array([[1,0],[inter,1]])
+        n1 = 3
+        n2 = 5
 
+        k1 = WhiteKernel(noise_level=level1, noise_level_bounds='fixed')
+        k2 = WhiteKernel(noise_level=level2, noise_level_bounds='fixed')
+        msk = MultiStateKernel((k1, k2,), matrix, [matrix]*2)
+        X = np.block([[np.zeros(n1),  np.ones(n2)],
+                      [np.arange(n1), np.arange(n2)]]).T
+
+        call_result = msk(X)
+        expected_result = np.diag(np.r_[np.full(n1, level1), np.full(n2, level2 + inter**2)])
+        expected_result[np.arange(n1) + n1, np.arange(n1)] = np.full(n1, inter * level1)
+        expected_result[np.arange(n1), np.arange(n1) + n1] = np.full(n1, inter * level1)
+        self.assertAllClose(call_result, expected_result)
 
 class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
     def setUp(self):
