@@ -8,8 +8,8 @@ from multistate_kernel.kernel import MultiStateKernel
 
 
 class NumpyArrayAssertsTestCase(unittest.TestCase):
-    def assertAllClose(self, first, second):
-        self.assertTrue(np.allclose(first, second), "Arrays aren't close:\n{}\n{}".format(first, second))
+    def assertAllClose(self, first, second, tol=1e-5):
+        self.assertTrue(np.allclose(first, second, rtol=tol), "Arrays aren't close:\n{}\n{}".format(first, second))
 
 
 class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
@@ -73,6 +73,7 @@ class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
         k1 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
         k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
 
-        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[0.5,1]]), [np.array([[0.5,-1],[-1,0.5]]), np.array([[1.5,1],[1,1.5]])])
+        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[0.0,0.0],[0.0,0.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
         gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
         gpr_msk.fit(self.x, self.y)
+        self.assertAllClose(gpr_msk.kernel_.theta, np.array([1.0, 1.0, 1.0]), 1e-1)
