@@ -1,8 +1,9 @@
 import unittest
 
+import math
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel, Matern
 
 from multistate_kernel.kernel import MultiStateKernel
 
@@ -57,7 +58,7 @@ class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
         expected_result[np.arange(n1), np.arange(n1) + n1] = np.full(n1, inter * level1)
         self.assertAllClose(call_result, expected_result)
 
-class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
+class IndependentWhiteKernelTestCase(NumpyArrayAssertsTestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -69,7 +70,7 @@ class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
         self.x = np.block([[np.zeros_like(self.x), self.x], [np.ones_like(self.x), self.x]])
         self.y = np.hstack((self.y1, self.y2))
 
-    def test_multistate_kernel_for_independent_kernels(self):
+    def test_multistate_kernel_for_independent_white_kernels(self):
         k1 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
         k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
 
@@ -77,6 +78,55 @@ class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
         gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
         gpr_msk.fit(self.x, self.y)
         self.assertAllClose(gpr_msk.kernel_.theta, np.array([1.0, 0.0, 1.0]), 1e-1)
+
+class IndependentARTestCase(NumpyArrayAssertsTestCase):
+    def setUp(self):
+        np.random.seed(42)
+
+        ar = 0.5
+        sample_length = 1000
+        self.y1 = np.random.normal(size=sample_length)
+        self.y2 = np.random.normal(size=sample_length)
+
+        for i in range(2, sample_length):
+                self.y1[i] = ar * self.y1[i-1] + self.y1[i]
+                self.y2[i] = ar * self.y2[i-1] + self.y2[i]
+
+        self.x1 = np.linspace(0.0, 1.0 * sample_length, num=sample_length).reshape(-1, 1)
+        self.x = np.block([[np.zeros_like(self.x1), self.x1], [np.ones_like(self.x1), self.x1]])
+        self.y = np.hstack((self.y1, self.y2))
+
+    def test_multistate_kernel_for_independent_ar_kernels(self):
+        k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
+        k2 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
+
+        gpr_k1 = GaussianProcessRegressor(kernel=1.0*k1, random_state=0)
+        gpr_k2 = GaussianProcessRegressor(kernel=1.0*k2, random_state=0)
+
+        gpr_k1.fit(self.x1, self.y1)
+        gpr_k2.fit(self.x1, self.y2)
+
+        expected_length_scale = -1.0/math.log(0.5)
+        expected_constant = 1.25
+        params_k1 = gpr_k1.kernel_.get_params()
+        params_k2 = gpr_k2.kernel_.get_params()
+        self.assertAlmostEqual(params_k1['k2__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAlmostEqual(params_k2['k2__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAlmostEqual(params_k1['k1__constant_value'], expected_constant, delta=0.1)
+        self.assertAlmostEqual(params_k2['k1__constant_value'], expected_constant, delta=0.1)
+
+        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[0.0,0.0],[0.0,0.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
+        gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
+        gpr_msk.fit(self.x, self.y)
+
+        params_msk=gpr_msk.kernel_.get_params()
+        self.assertAlmostEqual(params_msk['s0__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAlmostEqual(params_msk['s1__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAllClose(
+            params_msk['scale'],
+            np.array([[expected_constant**0.5, 0.0], [0.0,expected_constant**0.5]]),
+            1e-1
+        )
 
 class DependentDistributionsTestCase(NumpyArrayAssertsTestCase):
     def setUp(self):
