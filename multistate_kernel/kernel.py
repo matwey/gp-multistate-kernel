@@ -94,12 +94,13 @@ class MultiStateKernel(VariadicKernelOperator):
 				return matrix
 
 			def __init__(self, coeffs, coeffs_bounds):
+				coeffs = np.asarray(coeffs)
+				coeffs[np.triu_indices_from(coeffs, k=1)] = 0
+				coeffs_bounds = np.asarray(coeffs_bounds)
+
 				self.params = {'coeffs': coeffs, 'coeffs_bounds': coeffs_bounds}
 
-				if coeffs.ndim == 1:
-					matrix = np.diag(coeffs)
-					lower, upper = np.diag(coeffs_bounds[0]), np.diag(coeffs_bounds[1])
-				elif coeffs.ndim == 2:
+				if coeffs.ndim == 2:
 					matrix = np.tril(coeffs)
 					lower, upper = np.tril(coeffs_bounds[0]), np.tril(coeffs_bounds[1])
 				else:
@@ -117,6 +118,7 @@ class MultiStateKernel(VariadicKernelOperator):
 				return Hyperparameter("coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
 
 			def get_params(self, deep = True):
+				self.params["coeffs"][np.tril_indices_from(self.params["coeffs"])] = self.coeffs
 				return self.params
 
 			@property
