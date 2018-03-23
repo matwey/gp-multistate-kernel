@@ -26,9 +26,17 @@ class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
         X = np.block([[np.zeros(n1),  np.ones(n2)],
                       [np.arange(n1), np.arange(n2)]]).T
 
-        call_result = msk(X)
+        call_result, call_grad = msk(X, None, True)
         expected_result = np.diag(np.r_[np.full(n1, level1), np.full(n2, level2)])
+        expected_grad = np.zeros(shape=(n1+n2,n1+n2,3))
+        expected_grad[np.arange(n1), np.arange(n1), 0] = np.full(n1, level1 * 2)
+        expected_grad[n1+np.arange(n2), n1+np.arange(n2), 2] = np.full(n2, level2 * 2)
+        expected_grad[np.arange(n1) + n1, np.arange(n1), 1] = np.full(n1, level1)
+        expected_grad[np.arange(n1), np.arange(n1) + n1, 1] = np.full(n1, level1)
         self.assertAllClose(call_result, expected_result)
+        self.assertAllClose(call_grad, expected_grad)
+#        print(call_result)
+#        print(np.swapaxes(call_grad,2,0))
     def test_two_white_noises_unity_matrix_correlated(self):
         level1 = 1
         level2 = 2
