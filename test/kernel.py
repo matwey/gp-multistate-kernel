@@ -63,13 +63,34 @@ class IndependentDistributionsTestCase(NumpyArrayAssertsTestCase):
 
         sample_length = 1000
         self.y1 = np.random.normal(size=sample_length)
-        self.y2 = self.y1 + np.random.normal(size=sample_length)
+        self.y2 = np.random.normal(size=sample_length)
 
         self.x = np.linspace(0.0, 1.0, num=sample_length).reshape(-1, 1)
         self.x = np.block([[np.zeros_like(self.x), self.x], [np.ones_like(self.x), self.x]])
         self.y = np.hstack((self.y1, self.y2))
 
     def test_multistate_kernel_for_independent_kernels(self):
+        k1 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
+        k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
+
+        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[0.0,0.0],[0.0,0.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
+        gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
+        gpr_msk.fit(self.x, self.y)
+        self.assertAllClose(gpr_msk.kernel_.theta, np.array([1.0, 0.0, 1.0]), 1e-1)
+
+class DependentDistributionsTestCase(NumpyArrayAssertsTestCase):
+    def setUp(self):
+        np.random.seed(42)
+
+        sample_length = 1000
+        self.y1 = np.random.normal(size=sample_length)
+        self.y2 = self.y1 + np.random.normal(size=sample_length)
+
+        self.x = np.linspace(0.0, 1.0, num=sample_length).reshape(-1, 1)
+        self.x = np.block([[np.zeros_like(self.x), self.x], [np.ones_like(self.x), self.x]])
+        self.y = np.hstack((self.y1, self.y2))
+
+    def test_multistate_kernel_for_dependent_kernels(self):
         k1 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
         k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
 
