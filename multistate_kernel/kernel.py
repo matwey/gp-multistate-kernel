@@ -227,23 +227,25 @@ class MultiStateKernel(VariadicKernelOperator):
 			related_X_reduced[n] = X_reduced_index[related_X[n]]
 			related_Y_reduced[n] = Y_reduced_index[related_Y[n]]
 
+		kernel_pos = [[]]*n_states
 		scale_index = np.zeros(shape=scale.shape, dtype=int)
 		scale_index[np.tril_indices_from(scale_index)] = np.arange(len(np.tril_indices_from(scale_index)[0]))
 		scale_pos = 0
-		for kernel in self.state_kernels:
+		for k, kernel in enumerate(self.state_kernels):
+			begin = scale_pos
 			scale_pos += kernel.n_dims
+			end = scale_pos
+			kernel_pos[k] = (begin, end)
 
 		kernel_value = np.zeros(shape=(n_samples_X_reduced, n_samples_Y_reduced, n_states))
 		if eval_gradient:
-			kernel_gradient = np.zeros(shape=(n_samples_X_reduced, n_samples_Y_reduced, scale_pos))
+			kernel_gradient = np.zeros(shape=(n_samples_X_reduced, n_samples_Y_reduced, scale_pos
+))
 
-		pos = 0
 		for k in range(n_states):
 			kernel = self.state_kernels[k]
 			if eval_gradient:
-				npos = pos + kernel.n_dims
-				kernel_value[...,k], kernel_gradient[...,range(pos,npos)] = kernel(X_reduced, None, True)
-				pos = npos
+				kernel_value[...,k], kernel_gradient[...,range(*kernel_pos[k])] = kernel(X_reduced, None, True)
 			elif X is Y:
 				# See WhiteKernel implementation details
 				kernel_value[...,k] = kernel(X_reduced, None, False)
@@ -261,17 +263,14 @@ class MultiStateKernel(VariadicKernelOperator):
 				+ Delta_{m,i} scale_{n,k} kernel_{k} (X_n, X_m), where k <= min(n,m)
 			"""
 			for m in range(n_states):
-				pos = 0
 				for k in range(min(n,m) + 1):
 					sub_kernel_value = kernel_value[np.ix_(related_X_reduced[n],related_Y_reduced[m])][...,k]
 					K[np.ix_(related_X[n],related_Y[m])] += scale[n,k] * scale[m,k] * sub_kernel_value
 
 					if eval_gradient:
 						# Fill in gradient with respect to kernel_{k} params
-						npos = pos + kernel.n_dims
-						sub_kernel_gradient = kernel_gradient[np.ix_(related_X_reduced[n], related_Y_reduced[m], range(pos, npos))]
-						K_gradient[np.ix_(related_X[n],related_Y[m],range(pos,npos))] += scale[n,k] * scale[m,k] * sub_kernel_gradient
-						pos = npos
+						sub_kernel_gradient = kernel_gradient[np.ix_(related_X_reduced[n], related_Y_reduced[m], range(*kernel_pos[k]))]
+						K_gradient[np.ix_(related_X[n],related_Y[m],range(*kernel_pos[k]))] += scale[n,k] * scale[m,k] * sub_kernel_gradient
 
 						nk_index = scale_pos + scale_index[n,k]
 						# Fill in gradient with respect to scale matrix params
