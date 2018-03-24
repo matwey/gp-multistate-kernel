@@ -201,3 +201,45 @@ class DependentARTestCase(NumpyArrayAssertsTestCase):
             np.array([[expected_constant**0.5, 0.0], [-expected_constant**0.5,expected_constant**0.5]]),
             1e-1
         )
+
+class DependentMixedTestCase(NumpyArrayAssertsTestCase):
+    def setUp(self):
+        np.random.seed(42)
+
+        ar = 0.5
+        sample_length = 1000
+        self.y1 = np.random.normal(size=sample_length)
+        self.y2 = np.random.normal(size=sample_length)
+
+        for i in range(2, sample_length):
+                self.y1[i] = ar * self.y1[i-1] + self.y1[i]
+
+        self.x1 = np.linspace(0.0, 1.0 * sample_length, num=sample_length).reshape(-1, 1)
+        self.x = np.block([[np.zeros_like(self.x1), self.x1], [np.ones_like(self.x1), self.x1]])
+        self.y = np.hstack((self.y1, self.y2 - self.y1))
+
+    def test_multistate_kernel_for_mixed_kernels(self):
+        k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
+        k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
+
+        gpr_k1 = GaussianProcessRegressor(kernel=1.0*k1, random_state=0)
+
+        gpr_k1.fit(self.x1, self.y1)
+
+        expected_length_scale = -1.0/math.log(0.5)
+        expected_constant = 1.25
+        params_k1 = gpr_k1.kernel_.get_params()
+        self.assertAlmostEqual(params_k1['k2__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAlmostEqual(params_k1['k1__constant_value'], expected_constant, delta=0.1)
+
+        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[-2.0,-2.0],[-2.0,-2.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
+        gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
+        gpr_msk.fit(self.x, self.y)
+
+        params_msk=gpr_msk.kernel_.get_params()
+        self.assertAlmostEqual(params_msk['s0__length_scale'], expected_length_scale, delta=0.1)
+        self.assertAllClose(
+            params_msk['scale'],
+            np.array([[expected_constant**0.5, 0.0], [-expected_constant**0.5, 1.0]]),
+            1e-1
+        )
