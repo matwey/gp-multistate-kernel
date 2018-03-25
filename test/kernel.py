@@ -218,6 +218,17 @@ class DependentMixedTestCase(NumpyArrayAssertsTestCase):
         self.x = np.block([[np.zeros_like(self.x1), self.x1], [np.ones_like(self.x1), self.x1]])
         self.y = np.hstack((self.y1, self.y2 - self.y1))
 
+    def test_multistate_sample_for_mixed_kernels(self):
+        k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
+        k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
+        ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[-2.0,-2.0],[-2.0,-2.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
+        gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
+        gpr_msk.fit(self.x, self.y)
+        y_samples = gpr_msk.sample_y(self.x, random_state=0)
+        gpr_msk2 = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
+        gpr_msk2.fit(self.x, y_samples.reshape(-1))
+        self.assertAllClose(gpr_msk.kernel_.theta, gpr_msk2.kernel_.theta, 1e-1)
+
     def test_multistate_predict_for_mixed_kernels(self):
         k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
         k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
