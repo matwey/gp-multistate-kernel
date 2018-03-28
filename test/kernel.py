@@ -2,18 +2,14 @@ import unittest
 
 import math
 import numpy as np
+from numpy.testing import assert_allclose
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, Matern
 
 from multistate_kernel.kernel import MultiStateKernel
 
 
-class NumpyArrayAssertsTestCase(unittest.TestCase):
-    def assertAllClose(self, first, second, tol=1e-5):
-        self.assertTrue(np.allclose(first, second, rtol=tol), "Arrays aren't close:\n{}\n{}".format(first, second))
-
-
-class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
+class MultiStateKernelCallTestCase(unittest.TestCase):
     def test_two_white_noises_unity_matrix(self):
         level1 = 1
         level2 = 2
@@ -34,8 +30,8 @@ class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
         expected_grad[n1+np.arange(n2), n1+np.arange(n2), 2] = np.full(n2, level2 * 2)
         expected_grad[np.arange(n1) + n1, np.arange(n1), 1] = np.full(n1, level1)
         expected_grad[np.arange(n1), np.arange(n1) + n1, 1] = np.full(n1, level1)
-        self.assertAllClose(call_result, expected_result)
-        self.assertAllClose(call_grad, expected_grad)
+        assert_allclose(call_result, expected_result)
+        assert_allclose(call_grad, expected_grad)
 #        print(call_result)
 #        print(np.swapaxes(call_grad,2,0))
     def test_two_white_noises_unity_matrix_correlated(self):
@@ -56,9 +52,9 @@ class MultiStateKernelCallTestCase(NumpyArrayAssertsTestCase):
         expected_result = np.diag(np.r_[np.full(n1, level1), np.full(n2, level2 + inter**2)])
         expected_result[np.arange(n1) + n1, np.arange(n1)] = np.full(n1, inter * level1)
         expected_result[np.arange(n1), np.arange(n1) + n1] = np.full(n1, inter * level1)
-        self.assertAllClose(call_result, expected_result)
+        assert_allclose(call_result, expected_result)
 
-class IndependentWhiteKernelTestCase(NumpyArrayAssertsTestCase):
+class IndependentWhiteKernelTestCase(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -77,9 +73,9 @@ class IndependentWhiteKernelTestCase(NumpyArrayAssertsTestCase):
         ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[0.0,0.0],[0.0,0.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
         gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
         gpr_msk.fit(self.x, self.y)
-        self.assertAllClose(gpr_msk.kernel_.theta, np.array([1.0, 0.0, 1.0]), 1e-1)
+        assert_allclose(gpr_msk.kernel_.theta, np.array([1.0, 0.0, 1.0]), 1e-1)
 
-class IndependentARTestCase(NumpyArrayAssertsTestCase):
+class IndependentARTestCase(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -122,13 +118,13 @@ class IndependentARTestCase(NumpyArrayAssertsTestCase):
         params_msk=gpr_msk.kernel_.get_params()
         self.assertAlmostEqual(params_msk['s0__length_scale'], expected_length_scale, delta=0.1)
         self.assertAlmostEqual(params_msk['s1__length_scale'], expected_length_scale, delta=0.1)
-        self.assertAllClose(
+        assert_allclose(
             params_msk['scale'],
             np.array([[expected_constant**0.5, 0.0], [0.0,expected_constant**0.5]]),
             1e-1
         )
 
-class DependentWhiteKernelTestCase(NumpyArrayAssertsTestCase):
+class DependentWhiteKernelTestCase(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -147,13 +143,13 @@ class DependentWhiteKernelTestCase(NumpyArrayAssertsTestCase):
         ms_kernel = MultiStateKernel((k1, k2,), np.array([[1,0],[-0.5,1]]), [np.array([[0.0,0.0],[0.0,0.0]]), np.array([[2.0,2.0],[2.0,2.0]])])
         gpr_msk = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
         gpr_msk.fit(self.x, self.y)
-        self.assertAllClose(
+        assert_allclose(
             gpr_msk.kernel_.get_params()['scale'],
             np.array([[1.0, 0.0], [1.0,1.0]]),
             1e-1
         )
 
-class DependentARTestCase(NumpyArrayAssertsTestCase):
+class DependentARTestCase(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -196,13 +192,13 @@ class DependentARTestCase(NumpyArrayAssertsTestCase):
         params_msk=gpr_msk.kernel_.get_params()
         self.assertAlmostEqual(params_msk['s0__length_scale'], expected_length_scale, delta=0.1)
         self.assertAlmostEqual(params_msk['s1__length_scale'], expected_length_scale, delta=0.1)
-        self.assertAllClose(
+        assert_allclose(
             params_msk['scale'],
             np.array([[expected_constant**0.5, 0.0], [-expected_constant**0.5,expected_constant**0.5]]),
             1e-1
         )
 
-class DependentMixedTestCase(NumpyArrayAssertsTestCase):
+class DependentMixedTestCase(unittest.TestCase):
     def setUp(self):
         np.random.seed(42)
 
@@ -227,7 +223,7 @@ class DependentMixedTestCase(NumpyArrayAssertsTestCase):
         y_samples = gpr_msk.sample_y(self.x, random_state=0)
         gpr_msk2 = GaussianProcessRegressor(kernel=ms_kernel, random_state=0)
         gpr_msk2.fit(self.x, y_samples.reshape(-1))
-        self.assertAllClose(gpr_msk.kernel_.theta, gpr_msk2.kernel_.theta, 1e-1)
+        assert_allclose(gpr_msk.kernel_.theta, gpr_msk2.kernel_.theta, 1e-1)
 
     def test_multistate_predict_for_mixed_kernels(self):
         k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
@@ -240,7 +236,7 @@ class DependentMixedTestCase(NumpyArrayAssertsTestCase):
         mean = gpr_msk.predict(x)
         mean1 = mean[:self.sample_length]
         mean2 = mean[self.sample_length:]
-        self.assertAllClose(mean1, -mean2, 1e-1)
+        assert_allclose(mean1, -mean2, 1e-1)
 
     def test_multistate_kernel_for_mixed_kernels(self):
         k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
@@ -262,7 +258,7 @@ class DependentMixedTestCase(NumpyArrayAssertsTestCase):
 
         params_msk=gpr_msk.kernel_.get_params()
         self.assertAlmostEqual(params_msk['s0__length_scale'], expected_length_scale, delta=0.1)
-        self.assertAllClose(
+        assert_allclose(
             params_msk['scale'],
             np.array([[expected_constant**0.5, 0.0], [-expected_constant**0.5, expected_constant**0.5]]),
             1e-1
