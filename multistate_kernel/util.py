@@ -129,7 +129,7 @@ class MultiStateData:
         return self._x_2d_from_1d([x]*len(self.keys))
 
     def convert_arrays(self, x, y, err):
-        """Get new {class_name} object from scikit-learn style arrays
+        """Get new MultiStateKernel object from scikit-learn style arrays
 
         Parameters
         ----------
@@ -143,10 +143,10 @@ class MultiStateData:
 
         Returns
         -------
-        {class_name}
-            New {class_name} object with the same `norm` and `keys` as
+        MultiStateKernel
+            New MultiStateKernel object with the same `norm` and `keys` as
             original
-        """.format(class_name=self.__name__)
+        """
         return self.from_arrays(x, y, err, self.norm, keys=self.keys)
 
     @classmethod
