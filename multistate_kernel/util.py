@@ -107,13 +107,34 @@ class MultiStateData:
         """Get state index by name"""
         return self._state_idx_dict[key]
 
+    @staticmethod
+    def _x_2d_from_1d(x_1d_):
+        return np.block(list(
+            [np.full_like(x, i).reshape(-1,1), np.asarray(x).reshape(-1,1)] for i, x in enumerate(x_1d_)
+        ))
+
+    def sample(self, x):
+        """Generate scikit-learn style sample from 1-d array
+
+        Parameters
+        ----------
+        x: 1-D numpy.ndarray
+            `x` sample data, it assumes to be the sample for every state
+
+        Returns
+        -------
+        2-D numpy.ndarray
+            `X`-data in the format specified by `MultiStateKernel`
+        """
+        return self._x_2d_from_1d([x]*len(self.keys))
+
     def convert_arrays(self, x, y, err):
         """Get new {class_name} object from scikit-learn style arrays
 
         Parameters
         ----------
         x: 2-D numpy.ndarray
-            `X`-data in the format specified of `MultiStateKernel`: the first
+            `X`-data in the format specified by `MultiStateKernel`: the first
             column is th state index, the second column is coordinate.
         y: 1-D numpy.ndarray
             `y`-data
@@ -126,7 +147,7 @@ class MultiStateData:
             New {class_name} object with the same `norm` and `keys` as
             original
         """.format(class_name=self.__name__)
-        return self.from_arrays(x, y, err, self.norm, keys=self._keys_tuple)
+        return self.from_arrays(x, y, err, self.norm, keys=self.keys)
 
     @classmethod
     def from_items(cls, items):
@@ -139,9 +160,7 @@ class MultiStateData:
         as attributes `x`, `y` and `err`, all are 1-D numpy.ndarray
         """
         d = FrozenOrderedDict(*args, **kwargs)
-        x = np.block(list(
-            [np.full_like(v.x, i).reshape(-1,1), np.asarray(v.x).reshape(-1,1)] for i,v in enumerate(itervalues(d))
-        ))
+        x = cls._x_2d_from_1d((v.x for v in itervalues(d)))
         y = np.hstack((v.y for v in itervalues(d)))
         if y.size == 0:
             raise ValueError('Arrays should have non-zero length')

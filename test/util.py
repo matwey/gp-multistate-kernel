@@ -34,6 +34,12 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_allclose(msd.arrays.y * msd.arrays.norm, np.r_[self.y1, self.y2])
         assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2])
 
+    def get_msd(self):
+        items = [(self.key1, [self.x1, self.y1, self.err1]),
+                 (self.key2, [self.x2, self.y2, self.err2])]
+        msd = util.data_from_items(items)
+        return msd
+
     def test_from_items(self):
         items = [(self.key1, [self.x1, self.y1, self.err1]),
                  (self.key2, [self.x2, self.y2, self.err2])]
@@ -77,3 +83,11 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd.odict[self.key2].x, self.x2)
         assert_allclose(msd.odict[self.key2].y / msd.norm, self.y2)
         assert_allclose(msd.odict[self.key2].err / msd.norm, self.err2)
+
+    def test_get_sample(self):
+        msd = self.get_msd()
+        x = np.linspace(np.min((self.x1, self.x2)), np.max((self.x1, self.x2)), self.n*10)
+        x2d = msd.sample(x)
+        self.assertEqual(x2d.ndim, 2)
+        assert_equal(x2d[:,0], np.r_[np.zeros_like(x), np.ones_like(x)])
+        assert_equal(x2d[:,1], np.r_[x, x])
