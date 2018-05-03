@@ -4,18 +4,37 @@ from collections import OrderedDict
 from sklearn.gaussian_process.kernels import Kernel, Hyperparameter
 
 class VariadicKernelOperator(Kernel):
-	"""Alternative to sklearn.gaussian_process.kernels.KernelOperator with variadic number nested kernel"""
+	"""Variadic number nested kernel container.
+
+	This is a base class to simplify handling multiple nested kernels as
+	single one kernel. The class arranges parameters to be optimized and
+	handles other simple basic stuff. The user should inherite from this
+	class and implement the rest
+	``sklearn.gaussian_process.kernels.KernelOperator`` interface, for
+	instance, ``__call__()``.
+
+	Parameters
+	----------
+	kernels : dict of sklearn.gaussian_process.kernels.Kernel
+		The named collection of the kernels objects to be nested.
+
+	See Also
+	--------
+	sklearn.gaussian_process.kernels.Kernel : Base kernel interface.
+	sklearn.gaussian_process.kernels.KernelOperator : Kernel operator for two nested kernels.
+	"""
 
 	def __init__(self, **kernels):
 		self.kernels = OrderedDict(sorted(kernels.items(), key=lambda t: t[0]))
 
 	def get_params(self, deep=True):
 		"""Get parameters of this kernel.
+
 		Parameters
 		----------
 			deep : boolean, optional
-				If True, will return the parameters for this estimator and
-				contained subobjects that are estimators.
+				If True, will return the parameters for this
+				estimator and contained subobjects that are estimators.
 		Returns
 		-------
 			params : mapping of string to any
@@ -74,6 +93,97 @@ class VariadicKernelOperator(Kernel):
 
 
 class MultiStateKernel(VariadicKernelOperator):
+	"""Kernel for multi-state process
+
+	This kernel handles multidimensional stochastic processes analysis
+	inside ``sklearn.gaussian_process`` framework.
+
+	Let us consider ``n_states`` different gaussian processes. Every process is
+	allowed to have its own internal correlation properties. All processes in
+	common are independent from each other. We call this processes as
+	generating processes. At any time moment (X position) we can construct
+	the vector :math:`{\\bf e}` having ``n_states`` elements where i-th element
+	containts the value of i-th process. Since the generating processes are
+	independent, covariance matrix for the generating vector is diagonal
+	one.
+
+	To introduce correlations between processes, the lower triangular
+	scaling matrix :math:`{\\rm R}` is used. At every time moment we call
+	:math:`{\\rm R} {\\bf e}` as observable vector and corresponding elements of
+	vector :math:`{\\rm R} {\\bf e}` as observed processes.
+
+	The user specify kernels for each generating process in natural order.
+	The kernel parameters and scaling matrix :math:`{\\rm R}` are to be found by
+	optimizer when training on real data. The user should not introduce
+	multiplication constants in front of provided kernels. The scales are
+	alread handled by the scaling matrix :math:`{\\rm R}` and additional
+	parameters will make optimization problem degenerated.
+
+	We assume that at every time-moment (X-position) only one observable
+	process is measured. Since observable processes are correlated,
+	measured value `Y` for one process leads to additional information in
+	form of conditional probability for other processes at the same
+	time-moment (X-position).
+
+	The data for training should be provided in the following format.
+	Each `X` sample must be prepended with additional element enumerating the
+	observed process which the sample belogs to. This additional integer
+	value is called a state. Corresponding `Y` contains measured value.
+	It is supported to have two samples with different state but the same
+	time-moment (X-position).
+
+	For instance if we have two observable processes and measured the first
+	process as the following
+
+	+---+---+---+---+
+	| X | 1 | 3 | 5 |
+	+---+---+---+---+
+	| Y |0.0|0.3|0.1|
+	+---+---+---+---+
+
+	The second process as the following
+
+	+---+---+---+
+	| X | 2 | 6 |
+	+---+---+---+
+	| Y |0.2|0.4|
+	+---+---+---+
+
+
+	Then expected input `X` for ``MultiStateKernel`` should be the
+	following ``[[0,1],[1,2],[0,3],[0,5],[1,6]]``. And values `Y` are
+	arranged with respect to `X`: ``[0.0, 0.2, 0.3, 0.1, 0.4]``.
+	This is common rule for training and predict operations.
+
+	Parameters
+	----------
+	kernels : list of ``sklearn.gaussian_process.kernels.Kernel``
+		Array of kernels for each state. The array length should be
+		n_states.
+	scale : array, shape (n_states, n_states)
+		Initial lower triangular scale matrix.
+	scale_bounds : array, shape (2, n_states, n_states)
+		Lower and upper bounds for elements of the scale matrix.
+
+	Examples
+	--------
+	Here, we construct ``MultiStateKernel`` for the case of two states.
+	The first generating process is expected to obey Matern kernel. The
+	second one is white noise. We also specify initial scaling matrix with
+	anti-correlation between this states.
+
+	>>> k1 = Matern(nu=0.5, length_scale=1.0, length_scale_bounds=(0.01, 100))
+	>>> k2 = WhiteKernel(noise_level=1, noise_level_bounds='fixed')
+	>>> ms_kernel = MultiStateKernel((k1, k2,),
+	...                              np.array([[1,0],[-0.5,1]]),
+	...                              [np.array([[-2.0,-2.0],[-2.0,-2.0]]),
+	...                              np.array([[2.0,2.0],[2.0,2.0]])])
+
+	See Also
+	--------
+	sklearn.gaussian_process.kernels.Kernel : base kernel interface
+	"""
+
 	def _get_kernel_dict(self):
 		return dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
 
