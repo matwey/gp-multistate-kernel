@@ -91,3 +91,44 @@ class MutliStateDataUnitTest(unittest.TestCase):
         self.assertEqual(x2d.ndim, 2)
         assert_equal(x2d[:,0], np.r_[np.zeros_like(x), np.ones_like(x)])
         assert_equal(x2d[:,1], np.r_[x, x])
+
+    def test_different_sized_arrays_from_items(self):
+        items = [(self.key1, [self.x1, self.y1[:-1], self.err1]),
+                 (self.key2, [self.x2, self.y2, self.err2])]
+        with self.assertRaises(ValueError) as cm:
+            util.data_from_items(items)
+        self.assertEqual(str(cm.exception), '{} key has different array shapes'.format(self.key1))
+
+    def test_different_sized_arrays_from_arrays(self):
+        x_0 = np.r_[np.zeros(self.n), np.ones(self.n)]
+        x_1 = np.r_[self.x1, self.x2]
+        x = np.stack((x_0, x_1), axis=1)
+        y = np.r_[self.y1, self.y2[:-1]]
+        err = np.r_[self.err1, self.err2]
+
+        with self.assertRaises(IndexError):
+            util.data_from_arrays(x, y, err)
+
+    def test_empty_data_from_items(self):
+        items = [(self.key1, [[], [], []]), (self.key2, [[], [], []])]
+        msd = util.data_from_items(items)
+        assert_equal(msd.arrays.x, np.array([]).reshape(0,2))
+        assert_equal(msd.arrays.y, np.array([]))
+        assert_equal(msd.arrays.err, np.array([]))
+
+    def test_empty_data_without_keys_from_arrays(self):
+        msd = util.data_from_arrays(x=np.array([]).reshape(0,2), y=np.array([]), err=np.array([]))
+        self.assertEqual(msd.odict, {})
+
+    def test_empty_data_with_keys_from_arrays(self):
+        msd = util.data_from_arrays(x=np.array([]).reshape(0,2), y=np.array([]), err=np.array([]),
+                                    keys=[self.key1, self.key2])
+
+        state_data = util.StateData(x=np.array([]), y=np.array([]), err=np.array([]))
+        assert_equal(msd.odict[self.key1].x, state_data.x)
+        assert_equal(msd.odict[self.key1].y, state_data.y)
+        assert_equal(msd.odict[self.key1].err, state_data.err)
+        assert_equal(msd.odict[self.key2].x, state_data.x)
+        assert_equal(msd.odict[self.key2].y, state_data.y)
+        assert_equal(msd.odict[self.key2].err, state_data.err)
+        self.assertEqual(msd.keys, (self.key1, self.key2))

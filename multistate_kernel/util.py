@@ -109,9 +109,9 @@ class MultiStateData:
 
     @staticmethod
     def _x_2d_from_1d(x_1d_):
-        return np.block(list(
+        return np.block([
             [np.full_like(x, i).reshape(-1,1), np.asarray(x).reshape(-1,1)] for i, x in enumerate(x_1d_)
-        ))
+        ]).reshape(-1, 2)
 
     def sample(self, x):
         """Generate scikit-learn style sample from 1-d array
@@ -151,19 +151,29 @@ class MultiStateData:
 
     @classmethod
     def from_items(cls, items):
-        """Construct from iterable of (key: (x, y, err))"""
+        """Construct from iterable of (key: (x, y, err))
+
+        Raises
+        -------
+        ValueError: inconsistent input data shapes
+        """
         return cls.from_state_data((k, StateData(*v)) for k,v in items)
 
     @classmethod
     def from_state_data(cls, *args, **kwargs):
         """Construct from iterable of (key: object), where object should has
         as attributes `x`, `y` and `err`, all are 1-D numpy.ndarray
+
+        Raises
+        -------
+        ValueError: inconsistent input data shapes
         """
         d = FrozenOrderedDict(*args, **kwargs)
+        for k, v in iteritems(d):
+            if not len(v.x) == len(v.y) == len(v.err):
+                raise ValueError('{} key has different array shapes'.format(k))
         x = cls._x_2d_from_1d((v.x for v in itervalues(d)))
         y = np.hstack((v.y for v in itervalues(d)))
-        if y.size == 0:
-            raise ValueError('Arrays should have non-zero length')
         norm = y.std() or y[0] or 1
         y /= norm
         err = np.hstack((v.err for v in itervalues(d))) / norm
@@ -188,6 +198,9 @@ class MultiStateData:
         keys: array_like, optional
             The names for states. The default is integral indexes
 
+        Raises
+        -------
+        IndexError: inconsistent input data shapes
         """
         return cls.from_scikit_learn_data(ScikitLearnData(x=x, y=y, err=err, norm=norm), **kwargs)
 
@@ -202,6 +215,10 @@ class MultiStateData:
             of these attributes see `.from_arrays()`
         keys: array_like, optional
             The names for states. The default is integral indexes
+
+        Raises
+        -------
+        IndexError: inconsistent input data shapes
         """
         if keys is None:
             keys = np.unique(data.x[:,0])
