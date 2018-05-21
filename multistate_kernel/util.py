@@ -35,7 +35,7 @@ StateData = namedtuple('StateData', _ATTRS)
 ScikitLearnData = namedtuple('ScikitLearnData', _ATTRS + ('norm',))
 
 
-class MultiStateData:
+class MultiStateData(object):
     """Multi state data class
 
     This class holds two representation of the multi state data.
