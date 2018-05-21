@@ -29,6 +29,9 @@ class FrozenOrderedDict(Mapping):
             self._hash = hash(iteritems(self._d))
         return self._hash
 
+    def __repr__(self):
+        return 'Frozen' + repr(self._d)
+
 
 _ATTRS = ('x', 'y', 'err')
 StateData = namedtuple('StateData', _ATTRS)
