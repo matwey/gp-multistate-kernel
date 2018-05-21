@@ -29,13 +29,16 @@ class FrozenOrderedDict(Mapping):
             self._hash = hash(iteritems(self._d))
         return self._hash
 
+    def __repr__(self):
+        return 'Frozen' + repr(self._d)
+
 
 _ATTRS = ('x', 'y', 'err')
 StateData = namedtuple('StateData', _ATTRS)
 ScikitLearnData = namedtuple('ScikitLearnData', _ATTRS + ('norm',))
 
 
-class MultiStateData:
+class MultiStateData(object):
     """Multi state data class
 
     This class holds two representation of the multi state data.
