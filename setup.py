@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='gp-multistate-kernel',
-    version='0.0.4',
+    version='0.0.5',
     packages=['multistate_kernel'],
     url='',
     license='',
