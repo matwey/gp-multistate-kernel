@@ -237,4 +237,5 @@ data_from_state_data = MultiStateData.from_state_data
 data_from_arrays = MultiStateData.from_arrays
 
 
-__all__ = ('FrozenOrderedDict', 'StateData', 'data_from_items', 'data_from_state_data', 'data_from_arrays')
+__all__ = ('FrozenOrderedDict', 'StateData', 'MultiStateData',
+           'data_from_items', 'data_from_state_data', 'data_from_arrays')
