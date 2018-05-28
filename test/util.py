@@ -131,4 +131,4 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd.odict[self.key2].x, state_data.x)
         assert_equal(msd.odict[self.key2].y, state_data.y)
         assert_equal(msd.odict[self.key2].err, state_data.err)
-        self.assertEqual(msd.keys, (self.key1, self.key2))
+        self.assertEqual(msd.keys(), (self.key1, self.key2))

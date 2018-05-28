@@ -98,7 +98,6 @@ class MultiStateData(object):
     def norm(self):
         return self._scikit.norm
 
-    @property
     def keys(self):
         return self._keys_tuple
 
@@ -129,7 +128,7 @@ class MultiStateData(object):
         2-D numpy.ndarray
             `X`-data in the format specified by `MultiStateKernel`
         """
-        return self._x_2d_from_1d([x]*len(self.keys))
+        return self._x_2d_from_1d([x]*len(self.keys()))
 
     def convert_arrays(self, x, y, err):
         """Get new MultiStateKernel object from scikit-learn style arrays
@@ -150,7 +149,7 @@ class MultiStateData(object):
             New MultiStateKernel object with the same `norm` and `keys` as
             original
         """
-        return self.from_arrays(x, y, err, self.norm, keys=self.keys)
+        return self.from_arrays(x, y, err, self.norm, keys=self.keys())
 
     @classmethod
     def from_items(cls, items):
