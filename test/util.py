@@ -131,4 +131,60 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd.odict[self.key2].x, state_data.x)
         assert_equal(msd.odict[self.key2].y, state_data.y)
         assert_equal(msd.odict[self.key2].err, state_data.err)
-        self.assertEqual(msd.keys(), (self.key1, self.key2))
+        self.assertEqual(tuple(msd.keys()), (self.key1, self.key2))
+
+    def test_append_same_keys(self):
+        x1 = 1.
+        y1 = 2.
+        err1 = 3.
+        items = [(self.key1, [np.array([x1]), np.array([y1]), np.array([err1])]),
+                 (self.key2, [np.array([x1]), np.array([y1]), np.array([err1])])]
+        msd1 = util.data_from_items(items)
+
+        x2 = 4.
+        y2 = 5.
+        err2 = 6.
+        items = [(self.key1, [np.array([x2]), np.array([y2]), np.array([err2])]),
+                 (self.key2, [np.array([x2]), np.array([y2]), np.array([err2])])]
+        msd2 = util.data_from_items(items)
+
+        msd1.append(msd2)
+
+        assert_equal(msd1.odict[self.key1].x, [x1, x2])
+        assert_equal(msd1.odict[self.key1].y, [y1, y2])
+        assert_equal(msd1.odict[self.key1].err, [err1, err2])
+        assert_equal(msd1.odict[self.key2].x, [x1, x2])
+        assert_equal(msd1.odict[self.key2].y, [y1, y2])
+        assert_equal(msd1.odict[self.key2].err, [err1, err2])
+
+        assert_equal(msd1.arrays.x[:, 0], [0, 0, 1, 1])
+        assert_equal(msd1.arrays.x[:, 1], [x1, x2, x1, x2])
+        assert_allclose(msd1.arrays.y * msd1.arrays.norm, [y1, y2, y1, y2])
+        assert_allclose(msd1.arrays.err * msd1.arrays.norm, [err1, err2, err1, err2])
+
+    def test_append_different_key(self):
+        x1 = 1.
+        y1 = 2.
+        err1 = 3.
+        items = [(self.key1, [np.array([x1]), np.array([y1]), np.array([err1])])]
+        msd1 = util.data_from_items(items)
+
+        x2 = 4.
+        y2 = 5.
+        err2 = 6.
+        items = [(self.key2, [np.array([x2]), np.array([y2]), np.array([err2])])]
+        msd2 = util.data_from_items(items)
+
+        msd1.append(msd2)
+
+        assert_equal(msd1.odict[self.key1].x, [x1])
+        assert_equal(msd1.odict[self.key1].y, [y1])
+        assert_equal(msd1.odict[self.key1].err, [err1])
+        assert_equal(msd1.odict[self.key2].x, [x2])
+        assert_equal(msd1.odict[self.key2].y, [y2])
+        assert_equal(msd1.odict[self.key2].err, [err2])
+
+        assert_equal(msd1.arrays.x[:, 0], [0, 1])
+        assert_equal(msd1.arrays.x[:, 1], [x1, x2])
+        assert_allclose(msd1.arrays.y * msd1.arrays.norm, [y1, y2])
+        assert_allclose(msd1.arrays.err * msd1.arrays.norm, [err1, err2])
