@@ -83,9 +83,6 @@ class MultiStateData(object):
         self._dict = state_data_odict
         self._scikit = scikit_learn_data
 
-        self._keys_tuple = tuple(iterkeys(self._dict))
-        self._state_idx_dict = {x: i for i,x in enumerate(self._dict)}
-
     @property
     def odict(self):
         return self._dict
@@ -99,21 +96,49 @@ class MultiStateData(object):
         return self._scikit.norm
 
     def keys(self):
-        return self._keys_tuple
-
-    def key(self, idx):
-        """Get state name by index"""
-        return self._keys_tuple[idx]
-
-    def idx(self, key):
-        """Get state index by name"""
-        return self._state_idx_dict[key]
+        return self.odict.keys()
 
     @staticmethod
     def _x_2d_from_1d(x_1d_):
         return np.block([
             [np.full_like(x, i).reshape(-1,1), np.asarray(x).reshape(-1,1)] for i, x in enumerate(x_1d_)
         ]).reshape(-1, 2)
+
+    def append_dict(self, d):
+        """Add data from dictionary
+
+        Parameters
+        ----------
+        d: dict-like
+            Dictionary that is similar to `.odict`
+        """
+        self_keys = set(self.keys())
+        d_keys = set(d.keys())
+
+        def state_data_generator():
+            for k in self_keys.intersection(d_keys):
+                x = np.hstack((self.odict[k].x, d[k].x))
+                y = np.hstack((self.odict[k].y, d[k].y))
+                err = np.hstack((self.odict[k].err, d[k].err))
+                yield k, StateData(x, y, err)
+            for k in self_keys - d_keys:
+                yield k, self.odict[k]
+            for k in d_keys - self_keys:
+                yield k, d[k]
+        new_msd = self.from_state_data(state_data_generator())
+        self._dict = new_msd.odict
+        self._scikit = new_msd.arrays
+
+    def append(self, other):
+        """Add data from another MultiStateData object
+
+        Parameters
+        ----------
+        other: MultiStateData
+        """
+        if not isinstance(other, MultiStateData):
+            raise TypeError('Cannot append the object of type {}'.format(type(other)))
+        self.append_dict(other.odict)
 
     def sample(self, x):
         """Generate scikit-learn style sample from 1-d array
@@ -145,11 +170,11 @@ class MultiStateData(object):
 
         Returns
         -------
-        MultiStateKernel
-            New MultiStateKernel object with the same `norm` and `keys` as
+        MultiStateData
+            New `MultiStateData` object with the same `.norm` and `.keys` as
             original
         """
-        return self.from_arrays(x, y, err, self.norm, keys=self.keys())
+        return self.from_arrays(x, y, err, self.norm, keys=self.keys)
 
     @classmethod
     def from_items(cls, items):
