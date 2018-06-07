@@ -188,3 +188,37 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd1.arrays.x[:, 1], [x1, x2])
         assert_allclose(msd1.arrays.y * msd1.arrays.norm, [y1, y2])
         assert_allclose(msd1.arrays.err * msd1.arrays.norm, [err1, err2])
+
+    def test_addition(self):
+        msd1 = self.get_msd()
+        msd2 = self.get_msd()
+        msd = msd1 + msd2
+
+        assert_equal(msd.odict[self.key1].x, self.x1)
+        assert_equal(msd.odict[self.key1].y, self.y1*2)
+        assert_allclose(msd.odict[self.key1].err, self.err1*np.sqrt(2))
+        assert_equal(msd.odict[self.key2].x, self.x2)
+        assert_equal(msd.odict[self.key2].y, self.y2*2)
+        assert_allclose(msd.odict[self.key2].err, self.err2*np.sqrt(2))
+
+        assert_equal(msd.arrays.x[:, 0], np.r_[np.zeros(self.n), np.ones(self.n)])
+        assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
+        assert_allclose(msd.arrays.y * msd.arrays.norm, 2*np.r_[self.y1, self.y2])
+        assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2]*np.sqrt(2))
+
+    def test_subtraction(self):
+        msd1 = self.get_msd()
+        msd2 = self.get_msd()
+        msd = msd1 - msd2
+
+        assert_equal(msd.odict[self.key1].x, self.x1)
+        assert_equal(msd.odict[self.key1].y, 0)
+        assert_allclose(msd.odict[self.key1].err, self.err1 * np.sqrt(2))
+        assert_equal(msd.odict[self.key2].x, self.x2)
+        assert_equal(msd.odict[self.key2].y, 0)
+        assert_allclose(msd.odict[self.key2].err, self.err2 * np.sqrt(2))
+
+        assert_equal(msd.arrays.x[:, 0], np.r_[np.zeros(self.n), np.ones(self.n)])
+        assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
+        assert_allclose(msd.arrays.y * msd.arrays.norm, 0)
+        assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2] * np.sqrt(2))

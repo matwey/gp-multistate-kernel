@@ -104,6 +104,31 @@ class MultiStateData(object):
             [np.full_like(x, i).reshape(-1,1), np.asarray(x).reshape(-1,1)] for i, x in enumerate(x_1d_)
         ]).reshape(-1, 2)
 
+    def __mul__(self, other):
+        norm = self.norm * other
+        return MultiStateData.from_arrays(self.arrays.x, self.arrays.y, self.arrays.err, norm, keys=self.keys())
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __add_sub_helper(self, other, op):
+        if not np.allclose(self.arrays.x, other.arrays.x):
+            raise ValueError('objects should have the same x values')
+        if set(self.keys()) - set(other.keys()):
+            raise ValueError('objects should have the same keys()')
+        x = self.arrays.x
+        y = op(self.arrays.y * self.arrays.norm, other.arrays.y * other.arrays.norm)
+        norm = self.__norm(y)
+        y /= norm
+        err = np.sqrt((self.arrays.err * self.arrays.norm)**2 + (other.arrays.err * other.arrays.norm)**2) / norm
+        return MultiStateData.from_arrays(x, y, err, norm, keys=self.keys())
+
+    def __add__(self, other):
+        return self.__add_sub_helper(other, op=np.add)
+
+    def __sub__(self, other):
+        return self.__add_sub_helper(other, op=np.subtract)
+
     def append_dict(self, d):
         """Add data from dictionary
 
@@ -186,6 +211,10 @@ class MultiStateData(object):
         """
         return cls.from_state_data((k, StateData(*v)) for k,v in items)
 
+    @staticmethod
+    def __norm(y):
+        return y.std() or y[0] or 1
+
     @classmethod
     def from_state_data(cls, *args, **kwargs):
         """Construct from iterable of (key: object), where object should has
@@ -201,7 +230,7 @@ class MultiStateData(object):
                 raise ValueError('{} key has different array shapes'.format(k))
         x = cls._x_2d_from_1d((v.x for v in itervalues(d)))
         y = np.hstack((v.y for v in itervalues(d)))
-        norm = y.std() or y[0] or 1
+        norm = MultiStateData.__norm(y)
         y /= norm
         err = np.hstack((v.err for v in itervalues(d))) / norm
         return cls(d, ScikitLearnData(x=x, y=y, err=err, norm=norm))
