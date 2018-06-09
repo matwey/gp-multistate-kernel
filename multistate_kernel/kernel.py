@@ -184,74 +184,74 @@ class MultiStateKernel(VariadicKernelOperator):
 	sklearn.gaussian_process.kernels.Kernel : base kernel interface
 	"""
 
+	class ConstantMatrix(Kernel):
+		@staticmethod
+		def _matrix2flat(matrix):
+			return matrix[np.tril_indices_from(matrix)]
+
+		@staticmethod
+		def _flat2matrix(flat):
+			dimK = flat.shape[0]
+			dimX = int(math.floor(math.sqrt(2*dimK)))
+
+			matrix = np.zeros((dimX, dimX))
+			matrix[np.tril_indices_from(matrix)] = flat
+
+			return matrix
+
+		def __init__(self, coeffs, coeffs_bounds):
+			coeffs = np.asarray(coeffs)
+			coeffs[np.triu_indices_from(coeffs, k=1)] = 0
+			coeffs_bounds = np.asarray(coeffs_bounds)
+
+			self.params = {'coeffs': coeffs, 'coeffs_bounds': coeffs_bounds}
+
+			if coeffs.ndim == 2:
+				matrix = np.tril(coeffs)
+				lower, upper = np.tril(coeffs_bounds[0]), np.tril(coeffs_bounds[1])
+			else:
+				raise ValueError("coeffs has wrong or unsupported dimension")
+
+			self.coeffs = self._matrix2flat(matrix)
+			self.coeffs_bounds = np.stack((self._matrix2flat(lower), self._matrix2flat(upper)), 1)
+
+		@property
+		def tril(self):
+			return self._flat2matrix(self.coeffs)
+
+		@property
+		def hyperparameter_coeffs(self):
+			return Hyperparameter("coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
+
+		def get_params(self, deep = True):
+			self.params["coeffs"][np.tril_indices_from(self.params["coeffs"])] = self.coeffs
+			return self.params
+
+		@property
+		def theta(self):
+			return self.coeffs
+
+		@property
+		def bounds(self):
+			return self.coeffs_bounds
+
+		@theta.setter
+		def theta(self, theta):
+			self.coeffs = theta
+
+		def __call__(self, X, Y=None, eval_gradient=False):
+			raise NotImplementedError()
+		def diag(self, X):
+			raise NotImplementedError()
+		def is_stationary(self):
+			raise NotImplementedError()
+
 	def _get_kernel_dict(self):
 		return dict([("s" + str(n), kernel) for n, kernel in enumerate(self.state_kernels)])
 
 	def __init__(self, kernels, scale, scale_bounds):
-		class ConstantMatrix(Kernel):
-			@staticmethod
-			def _matrix2flat(matrix):
-				return matrix[np.tril_indices_from(matrix)]
-
-			@staticmethod
-			def _flat2matrix(flat):
-				dimK = flat.shape[0]
-				dimX = int(math.floor(math.sqrt(2*dimK)))
-
-				matrix = np.zeros((dimX, dimX))
-				matrix[np.tril_indices_from(matrix)] = flat
-
-				return matrix
-
-			def __init__(self, coeffs, coeffs_bounds):
-				coeffs = np.asarray(coeffs)
-				coeffs[np.triu_indices_from(coeffs, k=1)] = 0
-				coeffs_bounds = np.asarray(coeffs_bounds)
-
-				self.params = {'coeffs': coeffs, 'coeffs_bounds': coeffs_bounds}
-
-				if coeffs.ndim == 2:
-					matrix = np.tril(coeffs)
-					lower, upper = np.tril(coeffs_bounds[0]), np.tril(coeffs_bounds[1])
-				else:
-					raise ValueError("coeffs has wrong or unsupported dimension")
-
-				self.coeffs = self._matrix2flat(matrix)
-				self.coeffs_bounds = np.stack((self._matrix2flat(lower), self._matrix2flat(upper)), 1)
-
-			@property
-			def tril(self):
-				return self._flat2matrix(self.coeffs)
-
-			@property
-			def hyperparameter_coeffs(self):
-				return Hyperparameter("coeffs", "numeric", self.coeffs_bounds, self.coeffs.shape[0])
-
-			def get_params(self, deep = True):
-				self.params["coeffs"][np.tril_indices_from(self.params["coeffs"])] = self.coeffs
-				return self.params
-
-			@property
-			def theta(self):
-				return self.coeffs
-
-			@property
-			def bounds(self):
-				return self.coeffs_bounds
-
-			@theta.setter
-			def theta(self, theta):
-				self.coeffs = theta
-
-			def __call__(self, X, Y=None, eval_gradient=False):
-				raise NotImplementedError()
-			def diag(self, X):
-				raise NotImplementedError()
-			def is_stationary(self):
-				raise NotImplementedError()
-
 		self.state_kernels = kernels
-		self.scale_kernel = ConstantMatrix(scale, scale_bounds)
+		self.scale_kernel = self.ConstantMatrix(scale, scale_bounds)
 
 		kwargs = self._get_kernel_dict()
 		kwargs['scale'] = self.scale_kernel
