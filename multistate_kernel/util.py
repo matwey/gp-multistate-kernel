@@ -114,14 +114,15 @@ class MultiStateData(object):
     def __add_sub_helper(self, other, op):
         if not np.allclose(self.arrays.x, other.arrays.x):
             raise ValueError('objects should have the same x values')
-        if set(self.keys()) - set(other.keys()):
-            raise ValueError('objects should have the same keys()')
-        x = self.arrays.x
-        y = op(self.arrays.y * self.arrays.norm, other.arrays.y * other.arrays.norm)
-        norm = self.__norm(y)
-        y /= norm
-        err = np.sqrt((self.arrays.err * self.arrays.norm)**2 + (other.arrays.err * other.arrays.norm)**2) / norm
-        return MultiStateData.from_arrays(x, y, err, norm, keys=self.keys())
+        
+        def generate_items():
+            for key, state_data in self.odict.items():
+                x = state_data.x
+                y = op(state_data.y, other.odict[key].y)
+                err = np.sqrt(state_data.err**2 + other.odict[key].err**2)
+                yield (key, (x, y, err))
+       
+        return MultiStateData.from_items(generate_items())
 
     def __add__(self, other):
         return self.__add_sub_helper(other, op=np.add)

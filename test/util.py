@@ -222,3 +222,37 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
         assert_allclose(msd.arrays.y * msd.arrays.norm, 0)
         assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2] * np.sqrt(2))
+
+    def test_multiplication(self):
+        mul = 2
+        msd = mul * self.get_msd()
+        assert_equal(msd.odict[self.key1].x, self.x1)
+        assert_equal(msd.odict[self.key1].y, mul*self.y1)
+        assert_equal(msd.odict[self.key1].err, mul*self.err1)
+        assert_equal(msd.odict[self.key2].x, self.x2)
+        assert_equal(msd.odict[self.key2].y, mul*self.y2)
+        assert_equal(msd.odict[self.key2].err, mul*self.err2)
+
+        assert_equal(msd.arrays.x[:, 0], np.r_[np.zeros(self.n), np.ones(self.n)])
+        assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
+        assert_allclose(msd.arrays.y * msd.arrays.norm, mul*np.r_[self.y1, self.y2])
+        assert_allclose(msd.arrays.err * msd.arrays.norm, mul*np.r_[self.err1, self.err2])
+
+    def test_addition_different_key_order(self):
+        msd1 = self.get_msd()
+        items2 = [(self.key2, [self.x2, self.y2, self.err2]),
+                  (self.key1, [self.x1, self.y1, self.err1])]
+        msd2 = util.data_from_items(items2)
+        msd = msd1 - msd2
+
+        assert_equal(msd.odict[self.key1].x, self.x1)
+        assert_equal(msd.odict[self.key1].y, 0)
+        assert_allclose(msd.odict[self.key1].err, self.err1 * np.sqrt(2))
+        assert_equal(msd.odict[self.key2].x, self.x2)
+        assert_equal(msd.odict[self.key2].y, 0)
+        assert_allclose(msd.odict[self.key2].err, self.err2 * np.sqrt(2))
+
+        assert_equal(msd.arrays.x[:, 0], np.r_[np.zeros(self.n), np.ones(self.n)])
+        assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
+        assert_allclose(msd.arrays.y * msd.arrays.norm, 0)
+        assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2] * np.sqrt(2))
