@@ -200,7 +200,7 @@ class MultiStateData(object):
             New `MultiStateData` object with the same `.norm` and `.keys` as
             original
         """
-        return self.from_arrays(x, y, err, self.norm, keys=self.keys)
+        return self.from_arrays(x, y, err, self.norm, keys=self.keys())
 
     @classmethod
     def from_items(cls, items):
