@@ -256,3 +256,22 @@ class MutliStateDataUnitTest(unittest.TestCase):
         assert_equal(msd.arrays.x[:, 1], np.r_[self.x1, self.x2])
         assert_allclose(msd.arrays.y * msd.arrays.norm, 0)
         assert_allclose(msd.arrays.err * msd.arrays.norm, np.r_[self.err1, self.err2] * np.sqrt(2))
+
+    def test_convert_arrays(self):
+        msd1 = self.get_msd()
+        x = msd1.arrays.x.copy()
+        y = msd1.arrays.y * 2
+        err = msd1.arrays.err / 2
+        msd2 = msd1.convert_arrays(x, y, err)
+
+        assert_equal(msd2.arrays.x, x)
+        assert_equal(msd2.arrays.y, y)
+        assert_equal(msd2.arrays.err, err)
+        assert_equal(msd2.arrays.norm, msd1.arrays.norm)
+
+        assert_equal(msd2.odict[self.key1].x, self.x1)
+        assert_allclose(msd2.odict[self.key1].y, self.y1 * 2)
+        assert_allclose(msd2.odict[self.key1].err, self.err1 / 2)
+        assert_equal(msd2.odict[self.key2].x, self.x2)
+        assert_allclose(msd2.odict[self.key2].y, self.y2 * 2)
+        assert_allclose(msd2.odict[self.key2].err, self.err2 / 2)
