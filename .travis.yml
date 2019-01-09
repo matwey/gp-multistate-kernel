@@ -9,3 +9,18 @@ matrix:
       sudo: true
 script:
 - python setup.py test
+
+jobs:
+  include:
+    - stage: deploy
+      script: skip
+      python: '3.6'
+      deploy: &pypi
+        provider: pypi
+        user: matwey
+        password:
+          secure: "vTvUBUwgJR5A7bW/+TunivfckMYso5CVu4MJ9crvont4c3URTSCF9D0DFXIwrXlVQJMnmQZ6SY6P6pe5FaIFBhFnv6Uxg9Azn4OMKzK7c2F8YV55tlxhdk85afBIEUe8Yl4Ozm+0x3SZI5tiitQ8bgE1lMqqMNIW2tyY+R5N3hLA6j/MlgFLgAOzLpkvGfonl8YNODLgkcMzThF2GybWiTHWKLBNpmBC5YFChNNhy/MaSwe1cDgRigqCBmWNjvqBpaAeRYENsSpx6tzt34NWOO1VrUjtHV1PjJcBO3zNhfBhf1uOksrzhWV0J1Z4HL+WvUrKfPTIv8+UAWM8PmqNq8f+D54XNOaasKl7jKTYxbNtjmawBwRQv1ztuA1MXvLcONsIvqzIXEJb1GqAZz0lZ3RDV3ejKX3nW7VHe5efCCy/sFPpLBFJfnX2Xricj0hwAn+4R9gPMr7voHhNefif0YpRVOX1lzV2o4650/N8XrI/JRRJRet3To0xxhSLDhiXtd4LjcAz7ZGEtb/Ea6X3SzJBVQxs61tlX0avE+NcXdtXwYJmMJpwn7tDKxdbo80wxbj/IWtg0elTjg3Hq9XOt/EzVNpHZ0w6Or00zrqgLrRbR2PI0FTa9PeIzymIeMTy3zqELRvEW2uMVojyBMKx2Qo3qoHxK8Yl9Hnqp5t3l2w="
+        skip_existing: true
+        distributions: sdist bdist_wheel
+        on:
+          tags: true
