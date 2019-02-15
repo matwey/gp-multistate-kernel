@@ -230,10 +230,10 @@ class MultiStateData(object):
             if not len(v.x) == len(v.y) == len(v.err):
                 raise ValueError('{} key has different array shapes'.format(k))
         x = cls._x_2d_from_1d((v.x for v in itervalues(d)))
-        y = np.hstack((v.y for v in itervalues(d)))
+        y = np.hstack([v.y for v in itervalues(d)])
         norm = MultiStateData.__norm(y)
         y /= norm
-        err = np.hstack((v.err for v in itervalues(d))) / norm
+        err = np.hstack([v.err for v in itervalues(d)]) / norm
         return cls(d, ScikitLearnData(x=x, y=y, err=err, norm=norm))
 
     @classmethod
